@@ -14,7 +14,7 @@ fn main() -> Result<()> {
         io::stdout().flush()?;
         stdin.read_line(&mut input_buffer)?;
         let lexed_input = lexer::lex(&input_buffer).unwrap();
-        let parsed_input = parser::parse(lexed_input);
+        let parsed_input = parser::Parser::parse(lexed_input);
         match parsed_input {
             Ok(program) => {
                 for ast in program {

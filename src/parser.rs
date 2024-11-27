@@ -37,133 +37,189 @@ pub enum Multiplier {
     K,
 }
 
-pub fn parse(tokens: Vec<Token>) -> Result<Program, String> {
-    let mut result: Program = Vec::new();
-    let mut statement_tokens = Vec::new();
+pub struct Parser {
+    tokens: Vec<Token>,
+    cursor: usize,
+}
 
-    for token in tokens {
-        if token == Token::EndOfLine {
-            let parsed_statement = parse_statement(statement_tokens.clone())?;
-            result.push(parsed_statement);
-            statement_tokens.clear();
+impl Parser {
+    fn next(&mut self) -> Option<Token> {
+        if self.cursor + 1 == self.tokens.len() {
+            None
         } else {
-            statement_tokens.push(token);
+            let result = Some(self.tokens[self.cursor].clone());
+            self.cursor += 1;
+
+            result
         }
     }
 
-    Ok(result)
-}
+    fn peek(&self) -> Option<Token> {
+        if self.cursor + 1 == self.tokens.len() {
+            None
+        } else {
+            Some(self.tokens[self.cursor].clone())
+        }
+    }
 
-pub fn parse_statement(tokens: Vec<Token>) -> Result<AST, String> {
-    let mut position = tokens.iter();
+    // consumes the value
+    fn expect(&mut self, token: Token) -> Result<(), String> {
+        let next = self.next();
 
-    match position.next() {
-        Some(Token::Evaluator) => {
-            if let Some(Token::Equal) = position.next() {
-                // evaluate expression
-                let expression = parse_expression(&mut position)?;
+        if next.is_some_and(|t| t == token) {
+            Ok(())
+        } else {
+            Err(format!("Expected {:?}.", token))
+        }
+    }
 
-                let result = AST::Eval(expression);
+    // does not consume the value
+    fn check(&self, token: Token) -> bool {
+        let peek = self.peek();
 
-                return Ok(result);
-            }
-            Err("Expected = after evaluator".to_string())
+        peek.is_some_and(|t| t == token)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.peek().is_none()
+    }
+
+    fn init_parser(tokens: Vec<Token>) -> Parser {
+        Parser { tokens, cursor: 0 }
+    }
+
+    pub fn parse(tokens: Vec<Token>) -> Result<Program, String> {
+        let mut parser = Self::init_parser(tokens);
+
+        let result = parser.parse_statements()?;
+
+        Ok(result)
+    }
+
+    fn parse_statements(&mut self) -> Result<Program, String> {
+        while self.check(Token::EndOfLine) {
+            _ = self.next();
         }
 
-        Some(Token::Identifier(identifier)) => {
-            if let Some(Token::Equal) = position.next() {
-                // evaluate expression
+        let mut result = Vec::new();
 
-                let expression = parse_expression(&mut position)?;
+        loop {
+            let parsed_statement = self.parse_statement()?;
+            result.push(parsed_statement);
 
-                let result = AST::Bind {
-                    identifier: identifier.to_owned(),
+            if self.is_empty() {
+                break;
+            }
+
+            _ = self.expect(Token::EndOfLine)?
+        }
+
+        Ok(result)
+    }
+
+    fn parse_statement(&mut self) -> Result<AST, String> {
+        match self.next() {
+            Some(Token::Identifier(identifier)) => {
+                _ = self.expect(Token::Equal)?;
+
+                let expression = self.parse_expression()?;
+
+                let ast = AST::Bind {
+                    identifier,
                     expression,
                 };
 
-                return Ok(result);
+                Ok(ast)
             }
 
-            Err("Expected = after evaluator".to_string())
+            Some(Token::Evaluator) => {
+                _ = self.expect(Token::Equal)?;
+
+                let expression = self.parse_expression()?;
+
+                let ast = AST::Eval(expression);
+
+                Ok(ast)
+            }
+
+            _ => Err("Expected evaluator or identifier, found none.".to_string()),
         }
-
-        _ => Err("Expected identifier or ? at statement start.".to_string()),
     }
-}
 
-pub fn parse_expression<'a>(position: &mut Iter<'a, Token>) -> Result<Expression, String> {
-    let first = position.next();
+    fn parse_expression(&mut self) -> Result<Expression, String> {
+        match self.peek() {
+            Some(Token::Identifier(identifier)) => {
+                _ = self.next();
+                Ok(Expression::Identifier(identifier))
+            }
+            Some(Token::Number(_)) => {
+                let number_literal = self.parse_number()?;
+                Ok(Expression::Literal(number_literal))
+            }
 
-    match first {
-        Some(Token::Identifier(identifier)) => Ok(Expression::Identifier(identifier.to_owned())),
-        Some(Token::Number(number)) => {
-            let mut position = position.peekable();
-            if let Some(Token::Multiplier(m)) = position.peek() {
+            Some(Token::Parallel) => {
+                _ = self.next();
+                _ = self.expect(Token::LeftParenthesis)?;
+                let args = self.parse_args()?;
+                _ = self.expect(Token::RightParenthesis)?;
+
+                Ok(Expression::Expression {
+                    operand: Operand::Parallel,
+                    args,
+                })
+            }
+
+            Some(Token::Series) => {
+                _ = self.next();
+                _ = self.expect(Token::LeftParenthesis)?;
+                let args = self.parse_args()?;
+                _ = self.expect(Token::RightParenthesis)?;
+
+                Ok(Expression::Expression {
+                    operand: Operand::Series,
+                    args,
+                })
+            }
+
+            _ => Err("Expected expression".to_string()),
+        }
+    }
+
+    fn parse_number(&mut self) -> Result<Literal, String> {
+        if let Some(Token::Number(n)) = self.next() {
+            if let Some(Token::Multiplier(m)) = self.peek() {
                 if m == "k" {
-                    _ = position.next();
-                    Ok(Expression::Literal(Literal::NumberAndMultiplier {
-                        number: number.clone(),
+                    _ = self.next();
+                    let number = Literal::NumberAndMultiplier {
+                        number: n,
                         multiplier: Multiplier::K,
-                    }))
-                } else {
-                    Err("Unexpected multiplier after numeric value in expression".to_string())
-                }
-            } else {
-                Ok(Expression::Literal(Literal::Number(number.clone())))
-            }
-        }
-        Some(Token::Series) => {
-            if let Some(Token::LeftParenthesis) = position.next() {
-                let args = parse_args(position)?;
-                if let Some(Token::RightParenthesis) = position.next() {
-                    let result = Expression::Expression {
-                        operand: Operand::Series,
-                        args,
                     };
 
-                    Ok(result)
+                    Ok(number)
                 } else {
-                    Err("Missing ) for series function in expression.".to_owned())
+                    Err("Unknown multiplier".to_string())
                 }
             } else {
-                Err("Missing ( in series function in expression.".to_owned())
+                Ok(Literal::Number(n))
             }
+        } else {
+            Err("Expected number.".to_string())
         }
-        Some(Token::Parallel) => {
-            if let Some(Token::LeftParenthesis) = position.next() {
-                let args = parse_args(position)?;
-                if let Some(Token::RightParenthesis) = position.next() {
-                    let result = Expression::Expression {
-                        operand: Operand::Parallel,
-                        args,
-                    };
-
-                    Ok(result)
-                } else {
-                    Err("Missing ) for parallel function in expression.".to_owned())
-                }
-            } else {
-                Err("Missing ( in parallel function in expression.".to_owned())
-            }
-        }
-        _ => return Err("Unexpected token in expression.".to_string()),
-    }
-}
-
-fn parse_args<'a>(position: &mut Iter<'a, Token>) -> Result<Args, String> {
-    let mut result: Args = Vec::new();
-
-    result.push(parse_expression(position)?);
-
-    let mut position_peekable = position.clone().peekable();
-
-    if let Some(Token::Comma) = position_peekable.peek() {
-        _ = position.next();
-
-        result.push(parse_expression(position)?);
-
-        position_peekable = position.clone().peekable();
     }
 
-    Ok(result)
+    fn parse_args(&mut self) -> Result<Args, String> {
+        let mut result = Vec::new();
+
+        let expression = self.parse_expression()?;
+
+        result.push(expression);
+
+        while self.check(Token::Comma) {
+            _ = self.next();
+            let expression = self.parse_expression()?;
+            result.push(expression);
+        }
+
+        Ok(result)
+    }
 }

@@ -1,7 +1,5 @@
 use crate::lexer::Token;
-use std::slice::Iter;
-
-type Program = Vec<AST>;
+pub type Program = Vec<AST>;
 
 #[derive(Debug, Clone)]
 pub enum AST {

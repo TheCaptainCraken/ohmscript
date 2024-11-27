@@ -1,13 +1,33 @@
-mod lexer;
+use std::io::{self, Result, Write};
 
-fn main() {
-    let output = lexer::lex("R1 = 23.7\nR2 = 220k\n ? = R1->R2//R3");
-    match output {
-        Err(error) => {
-            dbg!(error);
+mod lexer;
+mod parser;
+
+const PROMPT: &str = "Ohm >";
+
+fn main() -> Result<()> {
+    let mut input_buffer = String::new();
+    let stdin = io::stdin();
+
+    loop {
+        print!("{}", PROMPT);
+        io::stdout().flush()?;
+        stdin.read_line(&mut input_buffer)?;
+        let lexed_input = lexer::lex(&input_buffer).unwrap();
+        let parsed_input = parser::parse(lexed_input);
+        match parsed_input {
+            Ok(program) => {
+                for ast in program {
+                    dbg!(ast);
+                }
+            }
+            Err(error) => {
+                println!("ERROR: {}", error);
+            }
         }
-        Ok(tokens) => {
-            dbg!(tokens);
-        }
+
+        input_buffer.clear();
     }
+
+    Ok(())
 }

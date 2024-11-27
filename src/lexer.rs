@@ -1,12 +1,16 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum Token {
-    Equal(String),
-    Parallel(String),
-    Series(String),
+    Equal,
+    Parallel,
+    Series,
     Identifier(String),
     Number(f64),
     Multiplier(String),
-    Evaluator(String),
+    Comma,
+    Evaluator,
+    LeftParenthesis,
+    RightParenthesis,
+    EndOfLine,
 }
 
 pub fn lex(input: &str) -> Result<Vec<Token>, String> {
@@ -18,18 +22,32 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
 
     while let Some(&current_character) = current_position.peek() {
         match current_character {
-            ' ' | '\t' => _ = current_position.next(),
+            ' ' | '\t' | '\r' => _ = current_position.next(),
             '\n' => {
                 line_number += 1;
                 _ = current_position.next();
+                result.push(Token::EndOfLine);
             }
             '=' => {
-                result.push(Token::Equal("=".to_string()));
+                result.push(Token::Equal);
                 _ = current_position.next();
             }
 
             '?' => {
-                result.push(Token::Evaluator("?".to_string()));
+                result.push(Token::Evaluator);
+                _ = current_position.next();
+            }
+            ')' => {
+                result.push(Token::RightParenthesis);
+                _ = current_position.next();
+            }
+            '(' => {
+                result.push(Token::LeftParenthesis);
+                _ = current_position.next();
+            }
+
+            ',' => {
+                result.push(Token::Comma);
                 _ = current_position.next();
             }
 
@@ -40,7 +58,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
 
                 if let Some('>') = ch {
                     _ = current_position.next();
-                    result.push(Token::Series("->".to_string()));
+                    result.push(Token::Series);
                 } else {
                     return Err(format!("Error on line {}", line_number));
                 }
@@ -53,7 +71,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
 
                 if let Some('/') = ch {
                     _ = current_position.next();
-                    result.push(Token::Parallel("//".to_string()));
+                    result.push(Token::Parallel);
                 } else {
                     return Err(format!("Error on line {}", line_number));
                 }
@@ -121,7 +139,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
                 let mut next_character = current_position.peek();
 
                 while let Some(&character) = next_character {
-                    if character.is_alphanumeric() {
+                    if character.is_alphanumeric() || character == '_' {
                         identifier.push(character);
                         _ = current_position.next();
                         next_character = current_position.peek();

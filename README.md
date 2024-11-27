@@ -9,8 +9,10 @@ This is an example OhmScript:
 ```ohmscript
 R1 = 225k
 R2 = 220
+R3 = 100k
 
-? = R1 // (R2 -> R1)
+? = //(R1,R2, R3)
+? = //(R2, ->(R3, R4), R3)
 ```
 
 *This prints `112554.9731`*

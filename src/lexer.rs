@@ -60,7 +60,10 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
                     _ = current_position.next();
                     result.push(Token::Series);
                 } else {
-                    return Err(format!("Error on line {}", line_number));
+                    return Err(format!(
+                        "Error on line {}, expected '>' but didn't find it.",
+                        line_number
+                    ));
                 }
             }
 
@@ -73,7 +76,10 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
                     _ = current_position.next();
                     result.push(Token::Parallel);
                 } else {
-                    return Err(format!("Error on line {}", line_number));
+                    return Err(format!(
+                        "Error on line {}, expected '/' but didn't find it.",
+                        line_number
+                    ));
                 }
             }
 
@@ -132,7 +138,7 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
                 }
             }
 
-            ('a'..'z') | ('A'..'Z') => {
+            ('a'..='z') | ('A'..='Z') => {
                 let mut identifier = String::from(current_character);
 
                 _ = current_position.next();
@@ -151,7 +157,12 @@ pub fn lex(input: &str) -> Result<Vec<Token>, String> {
                 result.push(Token::Identifier(identifier));
             }
 
-            _ => return Err(format!("Error on line {}", line_number)),
+            _ => {
+                return Err(format!(
+                    "Error on line {}, unidentified character.",
+                    line_number
+                ))
+            }
         }
     }
 

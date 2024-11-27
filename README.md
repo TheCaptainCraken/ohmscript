@@ -27,3 +27,24 @@ There are just a few operators in OhmScript:
 - `->`: this is the series operator. `->(R1, R2)` is equivalent to $R_1 + R_2$.
 
 In OhmScript, instead of writing `A = 225000`, you can use the `k` shorthand: `A=225k`.
+
+## How to use it
+
+>[!important]
+>You must have the rust language installed on your system
+
+Using OhmScript is as simple as:
+
+```bash
+git clone https://github.com/TheCaptainCraken/ohmscript
+cd ohmscript
+cargo run
+```
+
+At this point you should see the prompt:
+
+```plain
+Ohm >
+```
+
+Just start typing!

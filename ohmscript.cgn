@@ -1,0 +1,26 @@
+-- Syntax grammar (context free)
+
+statement      -> bind | eval ;
+bind           -> IDENTIFIER EQUAL expression ;
+eval           -> EVALUATOR EQUAL expression ;
+expression     -> 
+                IDENTIFIER | 
+                NUMBER | 
+                SERIES LEFT_PARENTHESIS args RIGHT_PARENTHESIS | 
+                PARALLEL LEFT_PARENTHESIS args RIGHT_PARENTHESIS ;
+args           -> expression | expression COMMA expression ;
+
+-- Lexical grammar (regular)
+
+NUMBER            -> DIGIT+ ("." DIGIT+)? MULTIPLIER?;
+IDENTIFIER        -> CHARACTER (CHARACTER | DIGIT)* ;
+CHARACTER         -> "a" ... "z" | "A" ... "Z" ;
+DIGIT             -> "0" ... "9" ;
+EQUAL             -> "="
+EVALUATOR         -> "?"
+PARALLEL_OPERATOR -> "->"
+SERIES_OPERATOR   -> "//"
+COMMA             -> ","
+LEFT_PARENTHESIS  -> "("
+RIGHT_PARENTHESIS -> ")"
+MULTIPLIER        -> "k"

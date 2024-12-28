@@ -48,3 +48,13 @@ Ohm >
 ```
 
 Just start typing!
+
+## Future additions
+
+These are features I'll implement if I get to work on this again.
+
+- [ ] Voltage / current divider.
+- [ ] Other modifiers (we just have k).
+- [ ] Support for capacitors and inductors.
+- [ ] Allow the user to specify precision.
+- [ ] Symbolic resolution.
